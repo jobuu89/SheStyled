@@ -1,14 +1,25 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import OutfitFilters from '../Components/OutFilters.jsx';
 import SafetyToggle from '../Components/SafetyToggle.jsx';
 import { useOutfit } from '../contexts/OutfitContext';
+import { useAuth } from '../hooks/UseAuth.jsx';
 
 const Home = () => {
   const { filters, setFilters } = useOutfit();
+  const { user } = useAuth();
+  const navigate = useNavigate();
 
   const handleSafetyToggle = (safetyMode) => {
     setFilters(prev => ({ ...prev, safetyMode }));
+  };
+
+  const handleLogin = () => {
+    navigate('/login');
+  };
+
+  const handleDashboard = () => {
+    navigate('/dashboard');
   };
 
   return (
@@ -23,6 +34,23 @@ const Home = () => {
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">
               Personalized outfit recommendations with your safety in mind
             </p>
+            <div className="mt-6">
+              {user ? (
+                <button
+                  onClick={handleDashboard}
+                  className="bg-purple-600 hover:bg-purple-700 text-white py-3 px-6 rounded-lg font-semibold transition-colors"
+                >
+                  Go to Dashboard
+                </button>
+              ) : (
+                <button
+                  onClick={handleLogin}
+                  className="bg-purple-600 hover:bg-purple-700 text-white py-3 px-6 rounded-lg font-semibold transition-colors"
+                >
+                  Login
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </header>
