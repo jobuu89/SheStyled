@@ -82,22 +82,19 @@ const Dashboard = () => {
   };
 
   const handleBrowseProducts = () => {
-    navigate('/home');
+    navigate('/products');
   };
 
   const handleViewProfile = () => {
-    // Navigate to profile page (you can create this later)
-    alert('Profile page coming soon!');
+    navigate('/profile');
   };
 
   const handleCheckOrders = () => {
-    // Navigate to orders page (you can create this later)
-    alert('Orders page coming soon!');
+    navigate('/orders');
   };
 
   const handleContactSupport = () => {
-    // Navigate to support page (you can create this later)
-    alert('Support page coming soon!');
+    navigate('/support');
   };
 
   const getFirebaseErrorMessage = (errorCode) => {
@@ -164,7 +161,18 @@ const Dashboard = () => {
           </div>
 
           {/* Quick Actions Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+            <button
+              onClick={() => navigate('/recommend')}
+              className="bg-white rounded-2xl p-6 shadow-lg border border-shestyled-cream hover:shadow-xl transition-all duration-300 hover:scale-105 text-left relative"
+            >
+              <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center mb-4">
+                <span className="text-white text-xl">✨</span>
+              </div>
+              <h3 className="text-lg font-semibold text-shestyled-chocolate mb-2">AI Outfit Generator</h3>
+              <p className="text-shestyled-brown text-sm">Get personalized recommendations</p>
+            </button>
+
             <button
               onClick={handleBrowseProducts}
               className="bg-white rounded-2xl p-6 shadow-lg border border-shestyled-cream hover:shadow-xl transition-all duration-300 hover:scale-105 text-left relative"
@@ -220,6 +228,24 @@ const Dashboard = () => {
             </button>
 
             <button
+              onClick={() => navigate('/admin')}
+              className="bg-white rounded-2xl p-6 shadow-lg border border-shestyled-cream hover:shadow-xl transition-all duration-300 hover:scale-105 text-left relative"
+            >
+              <button
+                onClick={(e) => { e.stopPropagation(); window.history.back(); }}
+                className="absolute top-2 right-2 bg-shestyled-pink text-white w-8 h-8 rounded-full flex items-center justify-center text-sm hover:bg-pink-600 transition-colors"
+                title="Go Back"
+              >
+                ←
+              </button>
+              <div className="w-12 h-12 bg-shestyled-beige rounded-full flex items-center justify-center mb-4">
+                <span className="text-shestyled-terracotta text-xl">⚙️</span>
+              </div>
+              <h3 className="text-lg font-semibold text-shestyled-chocolate mb-2">Admin</h3>
+              <p className="text-shestyled-brown text-sm">Manage products & inventory</p>
+            </button>
+
+            <button
               onClick={handleContactSupport}
               className="bg-white rounded-2xl p-6 shadow-lg border border-shestyled-cream hover:shadow-xl transition-all duration-300 hover:scale-105 text-left relative"
             >
@@ -235,6 +261,24 @@ const Dashboard = () => {
               </div>
               <h3 className="text-lg font-semibold text-shestyled-chocolate mb-2">Support</h3>
               <p className="text-shestyled-brown text-sm">Get help and support</p>
+            </button>
+
+            <button
+              onClick={handleLogout}
+              className="bg-white rounded-2xl p-6 shadow-lg border border-shestyled-cream hover:shadow-xl transition-all duration-300 hover:scale-105 text-left relative"
+            >
+              <button
+                onClick={(e) => { e.stopPropagation(); window.history.back(); }}
+                className="absolute top-2 right-2 bg-shestyled-pink text-white w-8 h-8 rounded-full flex items-center justify-center text-sm hover:bg-pink-600 transition-colors"
+                title="Go Back"
+              >
+                ←
+              </button>
+              <div className="w-12 h-12 bg-shestyled-beige rounded-full flex items-center justify-center mb-4">
+                <span className="text-shestyled-terracotta text-xl">🚪</span>
+              </div>
+              <h3 className="text-lg font-semibold text-shestyled-chocolate mb-2">Logout</h3>
+              <p className="text-shestyled-brown text-sm">Sign out of your account</p>
             </button>
           </div>
 
