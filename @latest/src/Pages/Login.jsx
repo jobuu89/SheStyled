@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/UseAuth.jsx';
 import { signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
 import { auth } from '../Components/Firebase.js';
@@ -6,16 +6,22 @@ import { useNavigate } from 'react-router-dom';
 import { useAdmin } from '../contexts/AdminContext.jsx';
 
 const Login = () => {
-  const { signIn, signUp, loading, error } = useAuth();
+  const { signIn, signUp, user, loading, error } = useAuth();
   const { loginAsAdmin } = useAdmin();
   const navigate = useNavigate();
   const [loginMode, setLoginMode] = useState('user'); // 'user' or 'admin'
   const [isLogin, setIsLogin] = useState(true);
-  const [formData, setFormData] = useState({
+const [formData, setFormData] = useState({
     email: '',
     password: '',
     displayName: ''
   });
+
+  useEffect(() => {
+    if (user && !loading) {
+      navigate('/home');
+    }
+  }, [user, loading, navigate]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -52,9 +58,9 @@ const Login = () => {
     try {
       const provider = new GoogleAuthProvider();
       await signInWithPopup(auth, provider);
-      navigate('/');
+      navigate('/home');
     } catch (err) {
-      console.error('Google sign in error:', err);
+      alert(`Google sign in failed: ${err.message}`);
     }
   };
 

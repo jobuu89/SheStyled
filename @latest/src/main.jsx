@@ -2,6 +2,7 @@ import React from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App.jsx'
 import { OutfitProvider } from './contexts/OutfitContext.jsx'
+import { TrustedContactsProvider } from './contexts/TrustedContactsContext.jsx'
 import { AuthProvider } from './hooks/UseAuth.jsx'
 import { ProductsProvider } from './contexts/ProductsContext.jsx'
 import { AdminProvider } from './contexts/AdminContext.jsx'
@@ -17,7 +18,9 @@ if (rootEl) {
         <AdminProvider>
           <CartProvider>
             <OutfitProvider>
-              <App />
+              <TrustedContactsProvider>
+                <App />
+              </TrustedContactsProvider>
             </OutfitProvider>
           </CartProvider>
         </AdminProvider>

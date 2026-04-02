@@ -1,12 +1,16 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { doc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { db } from '../Components/Firebase.js';
 
 export function useLocation() {
   const [sharing, setSharing] = useState(false);
   const [currentLocation, setCurrentLocation] = useState(null);
   const [error, setError] = useState(null);
   const [locationHistory, setLocationHistory] = useState([]);
+  const [shareUrl, setShareUrl] = useState('');
   const watchIdRef = useRef(null);
   const sharingSessionRef = useRef(null);
+  const sessionIdRef = useRef(null);
 
   useEffect(() => {
     // Get initial location permission
@@ -17,17 +21,13 @@ export function useLocation() {
             latitude: position.coords.latitude,
             longitude: position.coords.longitude,
             accuracy: position.coords.accuracy,
-            altitude: position.coords.altitude,
-            altitudeAccuracy: position.coords.altitudeAccuracy,
-            heading: position.coords.heading,
-            speed: position.coords.speed,
+            altitude: position.coords.altitude || null,
+            altitudeAccuracy: position.coords.altitudeAccuracy || null,
+            heading: position.coords.heading || null,
+            speed: position.coords.speed || null,
             timestamp: position.timestamp
           };
           setCurrentLocation(locationData);
-
-          // Load location history from localStorage
-          const savedHistory = JSON.parse(localStorage.getItem('locationHistory') || '[]');
-          setLocationHistory(savedHistory);
         },
         (err) => {
           setError(err.message);
@@ -35,14 +35,13 @@ export function useLocation() {
         {
           enableHighAccuracy: true,
           timeout: 10000,
-          maximumAge: 300000 // 5 minutes
+          maximumAge: 300000
         }
       );
     } else {
       setError('Geolocation is not supported by this browser');
     }
 
-    // Cleanup on unmount
     return () => {
       if (watchIdRef.current) {
         navigator.geolocation.clearWatch(watchIdRef.current);
@@ -54,166 +53,142 @@ export function useLocation() {
     if (!currentLocation) {
       throw new Error('Location not available');
     }
+    if (!contacts || contacts.length === 0) {
+      throw new Error('No trusted contacts available. Please add contacts in your profile first.');
+    }
 
     setSharing(true);
     setError(null);
 
     try {
       const sessionId = Date.now().toString();
+      sessionIdRef.current = sessionId;
       sharingSessionRef.current = sessionId;
 
+      const shareUrl = `${window.location.origin}/share/${sessionId}`;
+      setShareUrl(shareUrl);
+
+      // Copy to clipboard
+      await navigator.clipboard.writeText(shareUrl);
+
       const locationData = {
-        id: sessionId,
-        contacts,
+        sessionId,
+        contacts: contacts || [],
         duration,
         location: currentLocation,
-        timestamp: new Date().toISOString(),
+        lastUpdate: serverTimestamp(),
         expiresAt: new Date(Date.now() + duration * 60 * 1000).toISOString(),
-        status: 'active'
+        status: 'active',
+        updatesCount: 0
       };
 
-      // Store shared location data persistently
-      const existingShares = JSON.parse(localStorage.getItem('sharedLocations') || '[]');
-      existingShares.push(locationData);
-      localStorage.setItem('sharedLocations', JSON.stringify(existingShares));
+      // Save to Firestore
+      await setDoc(doc(db, 'sharedLocations', sessionId), locationData);
 
-      // Add to location history
-      const newHistoryEntry = {
-        ...locationData,
-        action: 'shared',
-        sessionId
-      };
-      const updatedHistory = [newHistoryEntry, ...locationHistory.slice(0, 49)]; // Keep last 50 entries
-      setLocationHistory(updatedHistory);
-      localStorage.setItem('locationHistory', JSON.stringify(updatedHistory));
+      console.log('✅ Location sharing started - URL copied:', shareUrl);
 
-      // Start location watching for continuous updates
-      if (navigator.geolocation) {
-        watchIdRef.current = navigator.geolocation.watchPosition(
-          (position) => {
-            const updatedLocation = {
-              latitude: position.coords.latitude,
-              longitude: position.coords.longitude,
-              accuracy: position.coords.accuracy,
-              altitude: position.coords.altitude,
-              altitudeAccuracy: position.coords.altitudeAccuracy,
-              heading: position.coords.heading,
-              speed: position.coords.speed,
-              timestamp: position.timestamp
-            };
-            setCurrentLocation(updatedLocation);
+      // Start continuous location watching and Firestore updates
+      startLocationWatch(sessionId);
 
-            // Update active sharing session with new location
-            if (sharingSessionRef.current === sessionId) {
-              const activeShares = JSON.parse(localStorage.getItem('sharedLocations') || '[]');
-              const sessionIndex = activeShares.findIndex(share => share.id === sessionId);
-              if (sessionIndex !== -1) {
-                activeShares[sessionIndex].location = updatedLocation;
-                activeShares[sessionIndex].lastUpdate = new Date().toISOString();
-                localStorage.setItem('sharedLocations', JSON.stringify(activeShares));
-              }
-            }
-          },
-          (err) => {
-            console.warn('Location watch error:', err.message);
-          },
-          {
-            enableHighAccuracy: true,
-            timeout: 10000,
-            maximumAge: 30000
-          }
-        );
-      }
-
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 2000));
-
-      console.log('Location sharing started:', locationData);
-
-      return { success: true, locationData, sessionId };
+      return { success: true, locationData, sessionId, shareUrl };
     } catch (err) {
-      setError('Failed to share location');
+      setError('Failed to share location: ' + err.message);
       setSharing(false);
       throw err;
     }
   };
 
-  const stopSharing = () => {
+  const startLocationWatch = useCallback((sessionId) => {
+    if (watchIdRef.current || !navigator.geolocation || !sessionId) return;
+
+    watchIdRef.current = navigator.geolocation.watchPosition(
+      async (position) => {
+        const updatedLocation = {
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+          accuracy: position.coords.accuracy,
+          altitude: position.coords.altitude || null,
+          altitudeAccuracy: position.coords.altitudeAccuracy || null,
+          heading: position.coords.heading || null,
+          speed: position.coords.speed || null,
+          timestamp: position.timestamp
+        };
+        setCurrentLocation(updatedLocation);
+
+        if (sharingSessionRef.current === sessionId) {
+          // Update Firestore
+          try {
+            await updateDoc(doc(db, 'sharedLocations', sessionId), {
+              location: updatedLocation,
+              lastUpdate: serverTimestamp(),
+              updatesCount: (locationData.updatesCount || 0) + 1
+            });
+          } catch (err) {
+            console.warn('Failed to update location in Firestore:', err);
+          }
+        }
+      },
+      (err) => {
+        console.warn('Location watch error:', err.message);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 30000
+      }
+    );
+  }, []);
+
+  const stopSharing = async () => {
     setSharing(false);
     setError(null);
 
-    // Stop location watching
     if (watchIdRef.current) {
       navigator.geolocation.clearWatch(watchIdRef.current);
       watchIdRef.current = null;
     }
 
-    // Update sharing sessions to inactive
-    const activeShares = JSON.parse(localStorage.getItem('sharedLocations') || '[]');
-    const updatedShares = activeShares.map(share => ({
-      ...share,
-      status: 'stopped',
-      stoppedAt: new Date().toISOString()
-    }));
-    localStorage.setItem('sharedLocations', JSON.stringify(updatedShares));
-
-    // Add to history
-    const stopEntry = {
-      id: Date.now().toString(),
-      action: 'stopped',
-      timestamp: new Date().toISOString(),
-      sessionId: sharingSessionRef.current
-    };
-    const updatedHistory = [stopEntry, ...locationHistory.slice(0, 49)];
-    setLocationHistory(updatedHistory);
-    localStorage.setItem('locationHistory', JSON.stringify(updatedHistory));
+    if (sessionIdRef.current) {
+      try {
+        await updateDoc(doc(db, 'sharedLocations', sessionIdRef.current), {
+          status: 'stopped',
+          stoppedAt: serverTimestamp()
+        });
+      } catch (err) {
+        console.warn('Failed to stop sharing in Firestore:', err);
+      }
+    }
 
     sharingSessionRef.current = null;
+    sessionIdRef.current = null;
+    setShareUrl('');
   };
 
   const updateLocation = () => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
-          setCurrentLocation({
+          const loc = {
             latitude: position.coords.latitude,
             longitude: position.coords.longitude,
             accuracy: position.coords.accuracy
-          });
+          };
+          setCurrentLocation(loc);
           setError(null);
         },
-        (err) => {
-          setError('Failed to update location: ' + err.message);
-        }
+        (err) => setError('Failed to update: ' + err.message)
       );
     }
-  };
-
-  const getActiveShares = () => {
-    const shares = JSON.parse(localStorage.getItem('sharedLocations') || '[]');
-    return shares.filter(share => share.status === 'active');
-  };
-
-  const getLocationHistory = () => {
-    return locationHistory;
-  };
-
-  const clearHistory = () => {
-    setLocationHistory([]);
-    localStorage.removeItem('locationHistory');
-    localStorage.removeItem('sharedLocations');
   };
 
   return {
     shareLocation,
     stopSharing,
     updateLocation,
-    getActiveShares,
-    getLocationHistory,
-    clearHistory,
     sharing,
     currentLocation,
     error,
-    locationHistory
+    shareUrl,
+    locationHistory // Keep for compatibility
   };
 }

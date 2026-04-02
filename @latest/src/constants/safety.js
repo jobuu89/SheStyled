@@ -8,3 +8,9 @@ export const SAFETY_TIPS = [
   "Keep emergency numbers saved and ready",
   "Tell someone your plans and expected return time"
 ];
+
+export const TRUSTED_CONTACTS_LIMIT = 5;
+
+export const EMAIL_REGEX = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/;
+export const PHONE_REGEX = /^[+]?[1-9]\\d{0,15}$/;
+

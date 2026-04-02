@@ -8,7 +8,7 @@ export const AdminProvider = ({ children }) => {
 
   // Super admin credentials (hardcoded for demo)
   const SUPER_ADMIN_EMAIL = 'admin@shestyled.com';
-  const SUPER_ADMIN_PASSWORD = 'superadmin2026!';
+  const SUPER_ADMIN_PASSWORD = 'admin123';
 
   const loginAsAdmin = (email, password) => {
     if (email === SUPER_ADMIN_EMAIL && password === SUPER_ADMIN_PASSWORD) {

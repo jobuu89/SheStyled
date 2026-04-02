@@ -2,18 +2,23 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import LocationSharing from '../Components/LocationSharing.jsx';
 import { useLocation } from '../hooks/useLocation';
+import { useTrustedContacts } from '../contexts/TrustedContactsContext.jsx';
 import { SAFETY_TIPS } from '../constants/safety';
 import Button from '../Components/Button.jsx';
+import LocationMap from '../Components/LocationMap.jsx';
 
 const SafetyMode = () => {
   const navigate = useNavigate();
-  const [trustedContacts, setTrustedContacts] = useState([]);
-  const { shareLocation, stopSharing, sharing } = useLocation();
+  const { contacts } = useTrustedContacts();
+  const trustedContacts = contacts.map(c => c.value).filter(Boolean); // Remove nulls
+  const alwaysHasContacts = trustedContacts.length > 0;
+  const locationHook = useLocation();
+  const { shareLocation, stopSharing, sharing, currentLocation } = locationHook;
 
   const handleShareLocation = async (duration) => {
     try {
       const result = await shareLocation(trustedContacts, duration);
-      alert(`Location shared successfully with ${trustedContacts.length} contact(s) for ${duration} minutes!`);
+      alert(`Location shared successfully with ${trustedContacts.length} contact(s) for ${duration} minutes!\n\nShare URL copied to clipboard: ${result.shareUrl}`);
     } catch (error) {
       alert('Failed to share location: ' + error.message);
     }
@@ -48,8 +53,17 @@ const SafetyMode = () => {
               onStopSharing={stopSharing}
               sharing={sharing}
               contacts={trustedContacts}
-              onContactsChange={setTrustedContacts}
+              readonly
             />
+            {sharing && currentLocation && (
+              <div className="col-span-full">
+                <LocationMap 
+                  latitude={currentLocation.latitude} 
+                  longitude={currentLocation.longitude}
+                  accuracy={currentLocation.accuracy || 50}
+                />
+              </div>
+            )}
 
             {/* Safety Tips */}
             <div className="bg-white rounded-2xl shadow-lg p-6">

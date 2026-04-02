@@ -1,42 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/UseAuth.jsx';
+import CameraCapture from '../Components/CameraCapture.jsx';
 
-const mockPosts = [
-  {
-    id: 1,
-    author: 'Sarah K.',
-    avatar: 'https://images.unsplash.com/photo-1494790108755-2616b612b786?w=80&h=80&fit=crop&crop=face',
-    image: 'https://images.unsplash.com/photo-1574257922357-6167795f1f6a?w=500&h=600&fit=crop',
-    caption: 'Perfect evening look for date night! Safety mode recommended heels that are walkable too ❤️ #EveningStyle #SafetyFirst',
-    likes: 128,
-    comments: 12,
-    timestamp: '2h ago',
-    tags: ['Evening', 'DateNight', 'Safety']
-  },
-  {
-    id: 2,
-    author: 'Emily R.',
-    avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=80&h=80&fit=crop&crop=face',
-    image: 'https://images.unsplash.com/photo-1618354691551-389fdb0974c8?w=500&h=600&fit=crop',
-    caption: 'Travel outfit that looks chic but is comfy for the airport! Layers are key 🧳✈️ #TravelStyle #PracticalFashion',
-    likes: 89,
-    comments: 8,
-    timestamp: '5h ago',
-    tags: ['Travel', 'Airport', 'Comfort']
-  },
-  {
-    id: 3,
-    author: 'Jessica L.',
-    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=80&h=80&fit=crop&crop=face',
-    image: 'https://images.unsplash.com/photo-1519046904884-53103b34b206?w=500&h=600&fit=crop',
-    caption: 'Loving this casual daytime vibe! Perfect for brunch with friends ☕👗 #CasualStyle #Brunch',
-    likes: 203,
-    comments: 24,
-    timestamp: '1d ago',
-    tags: ['Casual', 'Brunch', 'Friends']
-  }
-];
+const mockPosts = [];
 
 const Community = () => {
   const navigate = useNavigate();
@@ -47,8 +14,12 @@ const Community = () => {
   const [selectedPost, setSelectedPost] = useState(null);
   const [replyText, setReplyText] = useState('');
 
-  const likePost = (postId) => {
-    setPosts(prev => prev.map(post => 
+  // Camera states
+  const [showCameraModal, setShowCameraModal] = useState(false);
+  const [capturedImage, setCapturedImage] = useState('');
+
+const likePost = (postId) => {
+    setPosts(prevPosts => (prevPosts || []).map(post => 
       post.id === postId 
         ? { ...post, likes: post.likes + (post.liked ? -1 : 1), liked: !post.liked }
         : post
@@ -56,11 +27,11 @@ const Community = () => {
   };
 
   const addComment = (postId, comment) => {
-    setPosts(prev => prev.map(post => {
+    setPosts(prevPosts => (prevPosts || []).map(post => {
       if (post.id === postId) {
         return {
           ...post,
-          comments: [
+          comments: post.comments ? [
             ...post.comments,
             {
               id: Date.now(),
@@ -69,7 +40,13 @@ const Community = () => {
               text: comment,
               timestamp: 'Just now'
             }
-          ]
+          ] : [{
+            id: Date.now(),
+            author: user?.displayName || 'You',
+            avatar: user?.photoURL || '👩',
+            text: comment,
+            timestamp: 'Just now'
+          }]
         };
       }
       return post;
@@ -77,13 +54,15 @@ const Community = () => {
     setReplyText('');
   };
 
+  const [showCamera, setShowCamera] = useState(false);
+
   const createPost = () => {
     if (newPost.trim()) {
       const newPostData = {
         id: Date.now(),
         author: user?.displayName || 'You',
         avatar: user?.photoURL || '👩',
-        image: 'https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=500&h=600&fit=crop',
+        image: capturedImage || 'https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=500&h=600&fit=crop',
         caption: newPost,
         likes: 0,
         comments: 0,
@@ -93,6 +72,7 @@ const Community = () => {
       setPosts([newPostData, ...posts]);
       setNewPost('');
       setShowNewPost(false);
+      setCapturedImage(''); // Reset
     }
   };
 
@@ -145,7 +125,7 @@ const Community = () => {
               Share Post
             </button>
             <div className="flex items-center space-x-6 text-gray-500">
-              <button className="p-3 hover:bg-purple-100 rounded-2xl hover:text-purple-700 transition-all flex flex-col items-center group">
+              <button onClick={() => setShowCamera(true)} className="p-3 hover:bg-purple-100 rounded-2xl hover:text-purple-700 transition-all flex flex-col items-center group">
                 <span className="text-2xl mb-1">📸</span>
                 <span className="text-xs font-medium group-hover:text-purple-700">Photo</span>
               </button>
@@ -155,11 +135,29 @@ const Community = () => {
               </button>
             </div>
           </div>
+
+          {/* Captured image preview */}
+          {capturedImage && (
+            <div className="mt-4 p-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-2xl border-2 border-dashed border-purple-200">
+              <div className="flex items-center space-x-3">
+                <img src={capturedImage} alt="Captured" className="w-20 h-20 rounded-xl object-cover ring-2 ring-white shadow-md flex-shrink-0" />
+                <div className="flex-1">
+                  <p className="font-semibold text-purple-800">Photo ready! ✨</p>
+                  <button
+                    onClick={() => { setCapturedImage(''); }}
+                    className="text-sm text-purple-600 hover:text-purple-800 font-medium mt-1"
+                  >
+                    Change photo
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Posts Feed */}
         <div className="space-y-6">
-          {posts.map((post) => (
+          {(posts || []).map((post) => (
             <div key={post.id} className="bg-white/70 backdrop-blur-sm rounded-3xl shadow-xl hover:shadow-2xl transition-all border border-white/50 overflow-hidden">
               {/* Post Header */}
               <div className="p-6 border-b border-purple-100">
@@ -174,7 +172,7 @@ const Community = () => {
                     <p className="text-sm text-gray-500">{post.timestamp}</p>
                   </div>
                   <div className="flex flex-wrap gap-1">
-                    {post.tags.map((tag, i) => (
+                    {(post.tags || []).map((tag, i) => (
                       <span key={i} className="px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded-full font-medium">
                         #{tag}
                       </span>
@@ -226,6 +224,11 @@ const Community = () => {
             </div>
           ))}
         </div>
+
+{showCamera && <CameraCapture onCapture={(url) => {
+            setCapturedImage(url);
+            setShowCamera(false);
+          }} onClose={() => setShowCamera(false)} />}
 
         {selectedPost && (
           <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4" onClick={() => setSelectedPost(null)}>
